@@ -1,0 +1,40 @@
+[package]
+name = "resk"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-web = "4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.104"
+smallvec = "1.11.0"
+rand = "0.8.5"
+sequoia-openpgp = "1.16"
+sea-orm = { version = "0.10.5"}
+tokio = { version = "1.8", features = ["full"] }
+log = "0.4"
+log4rs = "1.2"
+lazy_static = "1.4.0"
+async_once = "0.2.6"
+hostname = "0.3.1"
+reqwest = "0.11.18"
+dirs = "5.0.1"
+clipboard = "0.5.0"
+actix-service = "2.0.2"
+ring = "0.16.20"
+base64 = "0.21.2"
+local-ip-address = "0.5.4"
+
+[dependencies.sea-orm-migration]
+version = "0.10.5"
+features = [
+  "runtime-tokio-rustls",
+  "sqlx-sqlite",
+]
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
