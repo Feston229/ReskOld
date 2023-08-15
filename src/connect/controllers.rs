@@ -82,12 +82,13 @@ mod scan_helpers {
 
     #[derive(Debug, Deserialize)]
     pub struct ScanPeerResponse {
-        pub status: bool,
+        pub success: bool,
         pub data: Value,
     }
 }
 
 pub async fn scan() -> Result<Value, Error> {
+    // TODO optimze by determining alive hosts first
     // Define data
     let local_ip = echo_helpers::get_local_ip().await;
     let ip_list = scan_helpers::generate_ips(local_ip).await;
@@ -114,10 +115,10 @@ pub async fn scan() -> Result<Value, Error> {
     for handle in handles {
         if let Ok(Some(data)) = handle.await {
             let response: ScanPeerResponse = serde_json::from_str(&data)?;
-            result.push(response.data.clone());
+            result.push(response.data.get("hostname").unwrap().clone());
             ip_list.push(response.data.get("ip").unwrap().clone());
         }
     }
 
-    Ok(json!({"ip_list": result}))
+    Ok(json!({"ip_list": ip_list}))
 }
