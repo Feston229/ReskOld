@@ -21,6 +21,7 @@ pub enum Error {
     KeyRejectedError(KeyRejected),
     FromUtf8(FromUtf8Error),
     BaseDecode(DecodeError),
+    SerdeJson(serde_json::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -61,6 +62,9 @@ impl std::fmt::Display for Error {
             }
             Self::BaseDecode(ref err) => {
                 write!(f, "Error decoding bytes to base64: {}", err)
+            }
+            Self::SerdeJson(ref err) => {
+                write!(f, "Error decoding json: {}", err)
             }
         }
     }
@@ -135,5 +139,11 @@ impl From<FromUtf8Error> for Error {
 impl From<DecodeError> for Error {
     fn from(err: DecodeError) -> Self {
         Self::BaseDecode(err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Self::SerdeJson(err)
     }
 }
