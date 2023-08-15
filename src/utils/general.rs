@@ -1,10 +1,8 @@
 use std::path::Path;
 
-use actix_web::HttpResponse;
+use actix_web::{HttpRequest, HttpResponse};
 use dirs::home_dir;
 use serde::{Deserialize, Serialize};
-
-use crate::connect::controllers::echo_helpers::get_local_ip;
 
 use super::{encryption::generate_keys, error::Error};
 
@@ -120,4 +118,11 @@ pub fn get_db_path() -> String {
 #[cfg(target_os = "android")]
 pub fn get_log_file_path() -> String {
     todo!()
+}
+
+pub async fn get_remote_ip(req: &HttpRequest) -> String {
+    req.connection_info()
+        .realip_remote_addr()
+        .unwrap_or("127.0.0.1")
+        .to_string()
 }

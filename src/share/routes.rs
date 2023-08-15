@@ -1,6 +1,7 @@
-use crate::share::controllers;
+use crate::utils::db::Database;
 use crate::utils::general::Response;
-use actix_web::{post, web, Responder};
+use crate::{share::controllers, utils::general::get_remote_ip};
+use actix_web::{post, web, HttpRequest, Responder};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -10,7 +11,17 @@ pub struct UpdateArgs {
 }
 
 #[post("/update")]
-async fn update(data: web::Json<UpdateArgs>) -> impl Responder {
+async fn update(
+    req: HttpRequest,
+    data: web::Json<UpdateArgs>,
+) -> impl Responder {
+    // TODO replace it somehow
+    let db = Database::new().await.unwrap();
+    let peer_ip_list = db.get_peers_ip().await.unwrap_or(vec![]);
+    if !peer_ip_list.contains(&get_remote_ip(&req).await) {
+        return Response::failure(403, "Forbiden".to_string());
+    }
+
     let args = data.into_inner();
     let response = controllers::update(&args).await;
     match response {

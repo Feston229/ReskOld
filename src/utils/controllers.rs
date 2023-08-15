@@ -5,7 +5,6 @@ use crate::utils::db::Database;
 use crate::utils::error::Error;
 use crate::utils::general::{check_keys, get_log_file_path};
 use actix_web::{middleware::Logger, App, HttpServer};
-use actix_web::{HttpRequest, HttpResponse};
 use async_once::AsyncOnce;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use lazy_static::lazy_static;

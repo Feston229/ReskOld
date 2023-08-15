@@ -1,5 +1,5 @@
 use crate::connect::controllers::{self, echo_helpers::get_local_ip};
-use crate::utils::general::Response;
+use crate::utils::general::{get_remote_ip, Response};
 use actix_web::{get, post, web, HttpRequest, Responder};
 use serde::Deserialize;
 
@@ -16,12 +16,7 @@ pub async fn connect_peer(
     data: web::Json<ConnectPeerArgs>,
 ) -> impl Responder {
     // TODO replace it somehow
-    let remote_ip = req
-        .connection_info()
-        .realip_remote_addr()
-        .unwrap_or("127.0.0.1")
-        .to_string();
-    if remote_ip != get_local_ip().await {
+    if get_remote_ip(&req).await != get_local_ip().await {
         return Response::failure(403, "Forbiden".to_string());
     }
 
@@ -45,12 +40,7 @@ pub async fn echo() -> impl Responder {
 #[get("/scan")]
 pub async fn scan(req: HttpRequest) -> impl Responder {
     // TODO replace it somehow
-    let remote_ip = req
-        .connection_info()
-        .realip_remote_addr()
-        .unwrap_or("127.0.0.1")
-        .to_string();
-    if remote_ip != get_local_ip().await {
+    if get_remote_ip(&req).await != get_local_ip().await {
         return Response::failure(403, "Forbiden".to_string());
     }
 
