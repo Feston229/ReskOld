@@ -4,6 +4,8 @@ use actix_web::HttpResponse;
 use dirs::home_dir;
 use serde::{Deserialize, Serialize};
 
+use crate::connect::controllers::echo_helpers::get_local_ip;
+
 use super::{encryption::generate_keys, error::Error};
 
 #[derive(Serialize, Deserialize)]
@@ -30,6 +32,10 @@ impl Response {
     pub fn failure(code: u16, msg: String) -> HttpResponse {
         match code {
             400 => HttpResponse::BadRequest().json(FailureResponse {
+                success: false,
+                msg,
+            }),
+            403 => HttpResponse::Forbidden().json(FailureResponse {
                 success: false,
                 msg,
             }),

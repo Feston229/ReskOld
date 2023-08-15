@@ -11,7 +11,7 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use std::fs;
 
-mod echo_helpers {
+pub mod echo_helpers {
     use local_ip_address::linux::local_ip;
 
     #[cfg(target_os = "linux")]

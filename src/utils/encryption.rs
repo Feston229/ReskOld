@@ -45,7 +45,7 @@ pub async fn sign_message(msg: &String) -> Result<String, Error> {
     Ok(sig_encoded_str)
 }
 
-fn verify_message(
+pub async fn verify_message(
     pub_key: &String,
     signature: &String,
     msg: &String,

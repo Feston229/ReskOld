@@ -1,9 +1,11 @@
+use crate::connect::controllers::echo_helpers::get_local_ip;
 use crate::connect::routes::{connect_peer, echo, scan};
 use crate::share::routes::update;
 use crate::utils::db::Database;
 use crate::utils::error::Error;
 use crate::utils::general::{check_keys, get_log_file_path};
 use actix_web::{middleware::Logger, App, HttpServer};
+use actix_web::{HttpRequest, HttpResponse};
 use async_once::AsyncOnce;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use lazy_static::lazy_static;
@@ -30,6 +32,7 @@ pub async fn run() -> Result<(), Error> {
     tokio::spawn(start_pooling_clipboard());
 
     // Node
+    let local_ip = get_local_ip().await;
     HttpServer::new(|| {
         App::new()
             .wrap(Logger::default())
@@ -38,7 +41,7 @@ pub async fn run() -> Result<(), Error> {
             .service(scan)
             .service(update)
     })
-    .bind(("127.0.0.1", 9898))?
+    .bind((local_ip.as_str(), 9898))?
     .run()
     .await?;
 
