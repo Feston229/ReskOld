@@ -8,6 +8,7 @@ use serde::Deserialize;
 pub struct UpdateArgs {
     pub clipboard: String,
     pub signature: String,
+    pub remote_ip: Option<String>,
 }
 
 #[post("/update")]
@@ -22,7 +23,8 @@ async fn update(
         return Response::failure(403, "Forbiden".to_string());
     }
 
-    let args = data.into_inner();
+    let mut args = data.into_inner();
+    args.remote_ip = Some(get_remote_ip(&req).await);
     let response = controllers::update(&args).await;
     match response {
         Ok(data) => Response::success(data),

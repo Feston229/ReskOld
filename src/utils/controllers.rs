@@ -73,9 +73,9 @@ async fn start_pooling_clipboard() {
         if content != new_content {
             log::info!("new clipboard content -> {}", &new_content);
             content = new_content;
-            /*             update_peers(content.clone())
-            .await
-            .unwrap_or_else(|err| log::error!("{}", err)); */
+            update_peers(content.clone())
+                .await
+                .unwrap_or_else(|err| log::error!("{}", err));
         }
     }
 }
@@ -127,13 +127,16 @@ async fn update_peers(clipboard: String) -> Result<(), Error> {
                 .await;
             let response = response.ok();
             match response {
-                Some(_) => log::info!(
-                    "{}",
-                    format!(
-                        "Clipboard shared with {} successfully",
-                        &peer.to_owned(),
-                    )
-                ),
+                Some(data) => {
+                    log::info!(
+                        "{}",
+                        format!(
+                            "Clipboard shared with {} successfully",
+                            &peer.to_owned(),
+                        )
+                    );
+                    println!("{:?}", &data.text().await);
+                }
                 None => log::info!(
                     "{}",
                     format!(

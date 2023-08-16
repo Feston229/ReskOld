@@ -65,4 +65,17 @@ impl Database {
             .collect();
         Ok(peers)
     }
+    pub async fn get_peer_pub_key(
+        &self,
+        peer_ip: &String,
+    ) -> Result<Option<String>, Error> {
+        let peer_record = peer::Entity::find()
+            .filter(peer::Column::Ip.contains(&peer_ip))
+            .one(&self.pool)
+            .await?;
+        match peer_record {
+            Some(record) => return Ok(Some(record.pub_key)),
+            None => Ok(None),
+        }
+    }
 }
