@@ -1,9 +1,9 @@
 use std::time::Duration;
 
+use crate::connect::routes::ConnectPeerArgs;
 use crate::utils::db::Database;
 use crate::utils::error::Error;
 use crate::utils::general::get_pub_key_path;
-use crate::{connect::routes::ConnectPeerArgs, utils::general::Response};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use hostname::get as get_hostname;
@@ -111,14 +111,12 @@ pub async fn scan() -> Result<Value, Error> {
 
     // Parse results
     let mut result = Vec::new();
-    let mut ip_list = Vec::new();
     for handle in handles {
         if let Ok(Some(data)) = handle.await {
             let response: ScanPeerResponse = serde_json::from_str(&data)?;
-            result.push(response.data.get("hostname").unwrap().clone());
-            ip_list.push(response.data.get("ip").unwrap().clone());
+            result.push(response.data.clone());
         }
     }
 
-    Ok(json!({"ip_list": ip_list}))
+    Ok(json!({"ip_list": result}))
 }
