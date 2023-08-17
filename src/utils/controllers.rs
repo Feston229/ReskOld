@@ -13,7 +13,9 @@ use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use reqwest::Client;
+use sea_orm::Related;
 use serde_json::json;
+use std::str::FromStr;
 use std::time::Duration;
 
 use super::encryption::sign_message;
@@ -106,7 +108,6 @@ async fn update_peers(clipboard: String) -> Result<(), Error> {
     let peers_ip = db.get_peers_ip().await?;
     let mut handles = Vec::new();
     let signature = sign_message(&clipboard).await?;
-    println!("{}", &signature);
 
     // Iterate through all peers
     for peer in peers_ip {
@@ -128,19 +129,33 @@ async fn update_peers(clipboard: String) -> Result<(), Error> {
             let response = response.ok();
             match response {
                 Some(data) => {
-                    log::info!(
-                        "{}",
-                        format!(
-                            "Clipboard shared with {} successfully",
-                            &peer.to_owned(),
-                        )
-                    );
-                    println!("{:?}", &data.text().await);
+                    let res = data.text().await.unwrap();
+                    let tost =
+                        serde_json::Value::from_str(&res.clone()).unwrap();
+                    let dat = tost.get("data").unwrap().clone();
+                    if dat.to_string() == "\"OK\"".to_string() {
+                        log::info!(
+                            "{}",
+                            format!(
+                                "Clipboard shared with {} successfully",
+                                &peer.to_owned(),
+                            )
+                        );
+                    } else {
+                        log::info!(
+                            "{}",
+                            format!(
+                                "Failed to share clipboard with peer {}: {}",
+                                &peer.to_owned(),
+                                res
+                            )
+                        );
+                    }
                 }
                 None => log::info!(
                     "{}",
                     format!(
-                        "Failed to share clipboard with peer {}",
+                        "Failed to share clipboard with peer {}, no response",
                         &peer.to_owned(),
                     )
                 ),

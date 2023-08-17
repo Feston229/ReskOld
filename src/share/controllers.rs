@@ -8,26 +8,24 @@ use crate::utils::error::Error;
 
 pub async fn update(args: &UpdateArgs) -> Result<Value, Error> {
     let mut response = "OK";
-    println!("1");
 
     let db = Database::new().await?;
     let peer_pub_key = db
         .get_peer_pub_key(&args.remote_ip.as_ref().unwrap())
         .await?
         .unwrap();
-    println!("2");
     let result =
         verify_message(&peer_pub_key, &args.signature, &args.clipboard).await;
-    println!("3");
 
     if result.is_err() {
         response = "Failed to verify signature";
+        log::info!("Failed attempt to update clipboard");
     }
 
     if result.is_ok() {
         set_clipboard(&args.clipboard).await?;
+        log::info!("Got new clipboard from");
     }
-    println!("4");
 
     Ok(json!(response))
 }
