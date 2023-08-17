@@ -106,6 +106,7 @@ async fn update_peers(clipboard: String) -> Result<(), Error> {
     let peers_ip = db.get_peers_ip().await?;
     let mut handles = Vec::new();
     let signature = sign_message(&clipboard).await?;
+    println!("{}", &signature);
 
     // Iterate through all peers
     for peer in peers_ip {
@@ -113,16 +114,15 @@ async fn update_peers(clipboard: String) -> Result<(), Error> {
         let clipboard = clipboard.clone();
         let handle = tokio::spawn(async move {
             let url = format!("http://{}:9898/update", &peer);
+            let body = json!({"clipboard": clipboard, "signature": signature});
             let client = Client::builder()
                 .timeout(Duration::from_secs(2))
                 .build()
                 .unwrap();
             let response = client
                 .post(&url)
-                .body(
-                    json!({"clipboard": clipboard, "signature": signature})
-                        .to_string(),
-                )
+                .header(reqwest::header::CONTENT_TYPE, "application/json")
+                .body(body.to_string())
                 .send()
                 .await;
             let response = response.ok();

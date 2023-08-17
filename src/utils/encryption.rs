@@ -51,6 +51,6 @@ pub async fn verify_message(
     msg: &String,
 ) -> Result<(), Error> {
     let pub_key = load_pub_key(pub_key)?;
-    pub_key.verify(msg.as_bytes(), signature.as_bytes())?;
+    pub_key.verify(msg.as_bytes(), &URL_SAFE_NO_PAD.decode(signature)?)?;
     Ok(())
 }
