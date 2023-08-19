@@ -92,7 +92,7 @@ mod scan_helpers {
 
 pub async fn scan() -> Result<Value, Error> {
     send_multicast_msg(get_digest("resk").await.as_str()).await?;
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(3)).await;
     Ok(json!({"ip_list": vec![1]}))
 }
 

@@ -132,6 +132,7 @@ pub async fn multicast_server(potential_peer_list: Arc<Mutex<Vec<String>>>) {
                         log::error!("Error pinging back: {}", err);
                         0 as usize
                     });
+                log::info!("Ping sent back to: {}", addr.ip());
             }
             if response == get_digest("yes").await.as_str() {
                 let mut vec = potential_peer_list.lock().await;
