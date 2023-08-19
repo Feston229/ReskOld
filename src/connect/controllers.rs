@@ -1,9 +1,12 @@
-use std::time::Duration;
+use tokio::time::{sleep, Duration};
 
-use crate::connect::routes::ConnectPeerArgs;
 use crate::utils::db::Database;
+use crate::utils::encryption::get_digest;
 use crate::utils::error::Error;
 use crate::utils::general::get_pub_key_path;
+use crate::{
+    connect::routes::ConnectPeerArgs, utils::communication::send_multicast_msg,
+};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use hostname::get as get_hostname;
@@ -88,6 +91,12 @@ mod scan_helpers {
 }
 
 pub async fn scan() -> Result<Value, Error> {
+    send_multicast_msg(get_digest("resk").await.as_str()).await?;
+    sleep(Duration::from_secs(1)).await;
+    Ok(json!({"ip_list": vec![1]}))
+}
+
+pub async fn scan_old() -> Result<Value, Error> {
     // TODO optimze by determining alive hosts first
     // Define data
     let local_ip = echo_helpers::get_local_ip().await;
