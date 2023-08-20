@@ -8,7 +8,7 @@ use crate::utils::{
     error::Error,
     general::{check_keys, get_log_file_path},
 };
-use actix_web::{middleware::Logger, App, HttpServer};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use async_once::AsyncOnce;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use lazy_static::lazy_static;
@@ -52,7 +52,9 @@ pub async fn run() -> Result<(), Error> {
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
-            .app_data(potential_peer_list.clone())
+            .app_data(web::Data::clone(&web::Data::new(
+                potential_peer_list.clone(),
+            )))
             .service(connect_peer)
             .service(echo)
             .service(scan)

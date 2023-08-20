@@ -12,12 +12,9 @@ use crate::{
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use hostname::get as get_hostname;
-use reqwest::Client;
 use serde_json::{json, Value};
 use std::fs;
 use std::sync::Arc;
-
-use self::scan_helpers::ScanPeerResponse;
 
 pub mod echo_helpers {
     use local_ip_address::linux::local_ip;
@@ -67,25 +64,6 @@ mod scan_helpers {
     use serde::Deserialize;
     use serde_json::Value;
 
-    pub async fn generate_ips(local_ip: String) -> Vec<String> {
-        let mut ip_vec = Vec::new();
-
-        for i in 1..=255 {
-            let next_octet = i.to_string();
-            let ip = format!(
-                "{}.{}.{}.{}",
-                &local_ip.split(".").nth(0).unwrap(),
-                &local_ip.split(".").nth(1).unwrap(),
-                &local_ip.split(".").nth(2).unwrap(),
-                &next_octet
-            );
-            if ip != local_ip {
-                ip_vec.push(ip);
-            }
-        }
-        ip_vec
-    }
-
     #[derive(Debug, Deserialize)]
     pub struct ScanPeerResponse {
         pub success: bool,
@@ -102,40 +80,6 @@ pub async fn scan(
     let mut data = potential_peer_list.lock().await;
     let result = data.clone();
     data.clear();
-
-    Ok(json!({"ip_list": result}))
-}
-
-pub async fn scan_old() -> Result<Value, Error> {
-    // TODO optimze by determining alive hosts first
-    // Define data
-    let local_ip = echo_helpers::get_local_ip().await;
-    let ip_list = scan_helpers::generate_ips(local_ip).await;
-    let mut handles = Vec::new();
-
-    // Iterate through all ips
-    for ip in ip_list {
-        let handle = tokio::spawn(async move {
-            let client = Client::builder()
-                .timeout(Duration::from_secs(3))
-                .build()
-                .ok()?;
-            let host = format!("http://{}:9898/echo", ip);
-            let response = client.get(&host).send().await;
-            response.ok()?.text().await.ok()
-        });
-
-        handles.push(handle);
-    }
-
-    // Parse results
-    let mut result = Vec::new();
-    for handle in handles {
-        if let Ok(Some(data)) = handle.await {
-            let response: ScanPeerResponse = serde_json::from_str(&data)?;
-            result.push(response.data.clone());
-        }
-    }
 
     Ok(json!({"ip_list": result}))
 }
