@@ -1,15 +1,21 @@
-use std::time::Duration;
+use actix_web::web;
+use tokio::sync::Mutex;
+use tokio::time::{sleep, Duration};
 
-use crate::connect::routes::ConnectPeerArgs;
 use crate::utils::db::Database;
+use crate::utils::encryption::get_digest;
 use crate::utils::error::Error;
 use crate::utils::general::get_pub_key_path;
+use crate::{
+    connect::routes::ConnectPeerArgs, utils::communication::send_multicast_msg,
+};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use hostname::get as get_hostname;
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::fs;
+use std::sync::Arc;
 
 use self::scan_helpers::ScanPeerResponse;
 
@@ -87,7 +93,20 @@ mod scan_helpers {
     }
 }
 
-pub async fn scan() -> Result<Value, Error> {
+pub async fn scan(
+    potential_peer_list: web::Data<Arc<Mutex<Vec<String>>>>,
+) -> Result<Value, Error> {
+    send_multicast_msg(get_digest("resk").await.as_str()).await?;
+    sleep(Duration::from_secs(3)).await;
+
+    let mut data = potential_peer_list.lock().await;
+    let result = data.clone();
+    data.clear();
+
+    Ok(json!({"ip_list": result}))
+}
+
+pub async fn scan_old() -> Result<Value, Error> {
     // TODO optimze by determining alive hosts first
     // Define data
     let local_ip = echo_helpers::get_local_ip().await;

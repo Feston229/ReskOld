@@ -1,8 +1,9 @@
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
+use ring::digest;
 use ring::rand::SystemRandom;
 use ring::signature::{self, Ed25519KeyPair, KeyPair, UnparsedPublicKey};
-use std::fs::{self};
+use std::fs;
 
 use crate::utils::{error::Error, general::get_pub_key_path};
 
@@ -53,4 +54,12 @@ pub async fn verify_message(
     let pub_key = load_pub_key(pub_key)?;
     pub_key.verify(msg.as_bytes(), &URL_SAFE_NO_PAD.decode(signature)?)?;
     Ok(())
+}
+
+pub async fn get_digest(msg: &str) -> String {
+    digest::digest(&digest::SHA512, msg.as_bytes())
+        .as_ref()
+        .iter()
+        .map(|byte| format!("{:02x}", byte))
+        .collect::<String>()
 }

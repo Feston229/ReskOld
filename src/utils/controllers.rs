@@ -1,42 +1,58 @@
-use crate::connect::controllers::echo_helpers::get_local_ip;
-use crate::connect::routes::{connect_peer, echo, scan};
+use crate::connect::{
+    controllers::echo_helpers::get_local_ip,
+    routes::{connect_peer, echo, scan},
+};
 use crate::share::routes::update;
-use crate::utils::db::Database;
-use crate::utils::error::Error;
-use crate::utils::general::{check_keys, get_log_file_path};
+use crate::utils::{
+    db::Database,
+    error::Error,
+    general::{check_keys, get_log_file_path},
+};
 use actix_web::{middleware::Logger, App, HttpServer};
 use async_once::AsyncOnce;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use lazy_static::lazy_static;
 use log::LevelFilter;
-use log4rs::append::file::FileAppender;
-use log4rs::config::{Appender, Config, Root};
-use log4rs::encode::pattern::PatternEncoder;
-use reqwest::Client;
-use sea_orm::Related;
-use serde_json::json;
-use std::str::FromStr;
-use std::time::Duration;
+use log4rs::{
+    append::file::FileAppender,
+    config::{Appender, Config, Root},
+    encode::pattern::PatternEncoder,
+};
+use std::{
+    net::{Ipv4Addr, SocketAddrV4},
+    sync::Arc,
+};
+use tokio::{net::UdpSocket as TokioUdpSocket, sync::Mutex, time::Duration};
 
-use super::encryption::sign_message;
+use super::communication::{start_broadcasting, update_peers};
 
 lazy_static! {
     pub static ref DATABASE: AsyncOnce<Database> =
         AsyncOnce::new(async { Database::new().await.unwrap() });
+    pub static ref SOCKET: AsyncOnce<TokioUdpSocket> =
+        AsyncOnce::new(async { init_socket().await });
 }
 
 pub async fn run() -> Result<(), Error> {
+    // Define data
+    let potential_peer_list: Arc<Mutex<Vec<String>>> =
+        Arc::new(Mutex::new(vec![]));
+
     // Check if files are inplace and init logger
     pre_run().await?;
 
     // polling to trigger if need to update clipboard of peers
     tokio::spawn(start_pooling_clipboard());
 
+    // polling to update peer's addresses between each other
+    tokio::spawn(start_broadcasting(potential_peer_list.clone()));
+
     // Node
     let local_ip = get_local_ip().await;
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
+            .app_data(potential_peer_list.clone())
             .service(connect_peer)
             .service(echo)
             .service(scan)
@@ -102,73 +118,17 @@ async fn init_logging() -> Result<(), Error> {
     Ok(())
 }
 
-async fn update_peers(clipboard: String) -> Result<(), Error> {
-    // Define data
-    let db = Database::new().await?;
-    let peers_ip = db.get_peers_ip().await?;
-    let mut handles = Vec::new();
-    let signature = sign_message(&clipboard).await?;
+async fn init_socket() -> TokioUdpSocket {
+    let multicast_addr: Ipv4Addr = "239.0.0.1".parse().unwrap();
+    let local_addr: Ipv4Addr = "0.0.0.0".parse().unwrap();
+    let port: u16 = 23235;
 
-    // Iterate through all peers
-    for peer in peers_ip {
-        let signature = signature.clone();
-        let clipboard = clipboard.clone();
-        let handle = tokio::spawn(async move {
-            let url = format!("http://{}:9898/update", &peer);
-            let body = json!({"clipboard": clipboard, "signature": signature});
-            let client = Client::builder()
-                .timeout(Duration::from_secs(2))
-                .build()
-                .unwrap();
-            let response = client
-                .post(&url)
-                .header(reqwest::header::CONTENT_TYPE, "application/json")
-                .body(body.to_string())
-                .send()
-                .await;
-            let response = response.ok();
-            match response {
-                Some(data) => {
-                    let res = data.text().await.unwrap();
-                    let tost =
-                        serde_json::Value::from_str(&res.clone()).unwrap();
-                    let dat = tost.get("data").unwrap().clone();
-                    if dat.to_string() == "\"OK\"".to_string() {
-                        log::info!(
-                            "{}",
-                            format!(
-                                "Clipboard shared with {} successfully",
-                                &peer.to_owned(),
-                            )
-                        );
-                    } else {
-                        log::info!(
-                            "{}",
-                            format!(
-                                "Failed to share clipboard with peer {}: {}",
-                                &peer.to_owned(),
-                                res
-                            )
-                        );
-                    }
-                }
-                None => log::info!(
-                    "{}",
-                    format!(
-                        "Failed to share clipboard with peer {}, no response",
-                        &peer.to_owned(),
-                    )
-                ),
-            }
-        });
-        handles.push(handle);
-    }
-
-    for handle in handles {
-        handle.await.unwrap_or_else(|err| {
-            log::error!("{}", format!("tokio error: {}", err))
-        });
-    }
-
-    Ok(())
+    let tokio_socket =
+        TokioUdpSocket::bind(SocketAddrV4::new(local_addr, port))
+            .await
+            .expect("Failed to bind Tokio socket");
+    tokio_socket
+        .join_multicast_v4(multicast_addr.clone(), local_addr.clone())
+        .expect("Failed to join multicast group for Tokio socket");
+    tokio_socket
 }

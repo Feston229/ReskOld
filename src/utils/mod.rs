@@ -1,3 +1,4 @@
+pub mod communication;
 pub mod controllers;
 pub mod db;
 pub mod encryption;
