@@ -1,3 +1,5 @@
+use actix_web::web;
+use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
 use crate::utils::db::Database;
@@ -13,6 +15,7 @@ use hostname::get as get_hostname;
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::fs;
+use std::sync::Arc;
 
 use self::scan_helpers::ScanPeerResponse;
 
@@ -90,10 +93,17 @@ mod scan_helpers {
     }
 }
 
-pub async fn scan() -> Result<Value, Error> {
+pub async fn scan(
+    potential_peer_list: web::Data<Arc<Mutex<Vec<String>>>>,
+) -> Result<Value, Error> {
     send_multicast_msg(get_digest("resk").await.as_str()).await?;
     sleep(Duration::from_secs(3)).await;
-    Ok(json!({"ip_list": vec![1]}))
+
+    let mut data = potential_peer_list.lock().await;
+    let result = data.clone();
+    data.clear();
+
+    Ok(json!({"ip_list": result}))
 }
 
 pub async fn scan_old() -> Result<Value, Error> {

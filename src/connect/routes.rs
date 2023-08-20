@@ -4,6 +4,7 @@ use actix_web::{get, post, web, HttpRequest, Responder};
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::net::UdpSocket as TokioUdpSocket;
+use tokio::sync::Mutex;
 
 #[derive(Deserialize)]
 pub struct ConnectPeerArgs {
@@ -40,13 +41,16 @@ pub async fn echo() -> impl Responder {
 }
 
 #[get("/scan")]
-pub async fn scan(req: HttpRequest) -> impl Responder {
+pub async fn scan(
+    req: HttpRequest,
+    potential_peer_list: web::Data<Arc<Mutex<Vec<String>>>>,
+) -> impl Responder {
     // TODO replace it somehow
     if get_remote_ip(&req).await != get_local_ip().await {
         return Response::failure(403, "Forbiden".to_string());
     }
 
-    let response = controllers::scan().await;
+    let response = controllers::scan(potential_peer_list).await;
     match response {
         Ok(data) => Response::success(data),
         Err(e) => Response::failure(500, e.to_string()),
