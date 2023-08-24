@@ -1,23 +1,21 @@
 use actix_web::web;
+use reqwest::Client;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
 use crate::utils::db::Database;
 use crate::utils::encryption::get_digest;
 use crate::utils::error::Error;
-use crate::utils::general::get_pub_key_path;
+use crate::utils::general::get_verify_key_path;
 use crate::{
     connect::routes::ConnectPeerArgs, utils::communication::send_multicast_msg,
 };
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use hostname::get as get_hostname;
-use reqwest::Client;
 use serde_json::{json, Value};
 use std::fs;
 use std::sync::Arc;
-
-use self::scan_helpers::ScanPeerResponse;
 
 pub mod echo_helpers {
     use local_ip_address::linux::local_ip;
@@ -40,13 +38,13 @@ pub mod echo_helpers {
 }
 
 pub async fn echo() -> Result<Value, Error> {
-    let pub_key_bytes = fs::read(get_pub_key_path().as_str())?;
-    let pub_key_encoded_str = URL_SAFE_NO_PAD.encode(pub_key_bytes);
+    let verify_key_bytes = fs::read(get_verify_key_path().as_str())?;
+    let verify_key_encoded_str = URL_SAFE_NO_PAD.encode(verify_key_bytes);
     let hostname = get_hostname()?.to_string_lossy().to_string();
     let local_ip = echo_helpers::get_local_ip().await;
 
     Ok(
-        json!({"pub_key": pub_key_encoded_str, "hostname": hostname, "ip": local_ip}),
+        json!({"verify_key": verify_key_encoded_str, "hostname": hostname, "ip": local_ip}),
     )
 }
 
@@ -67,25 +65,6 @@ mod scan_helpers {
     use serde::Deserialize;
     use serde_json::Value;
 
-    pub async fn generate_ips(local_ip: String) -> Vec<String> {
-        let mut ip_vec = Vec::new();
-
-        for i in 1..=255 {
-            let next_octet = i.to_string();
-            let ip = format!(
-                "{}.{}.{}.{}",
-                &local_ip.split(".").nth(0).unwrap(),
-                &local_ip.split(".").nth(1).unwrap(),
-                &local_ip.split(".").nth(2).unwrap(),
-                &next_octet
-            );
-            if ip != local_ip {
-                ip_vec.push(ip);
-            }
-        }
-        ip_vec
-    }
-
     #[derive(Debug, Deserialize)]
     pub struct ScanPeerResponse {
         pub success: bool,
@@ -96,24 +75,17 @@ mod scan_helpers {
 pub async fn scan(
     potential_peer_list: web::Data<Arc<Mutex<Vec<String>>>>,
 ) -> Result<Value, Error> {
+    // Send ping message to the multicast group
     send_multicast_msg(get_digest("resk").await.as_str()).await?;
     sleep(Duration::from_secs(3)).await;
 
+    // lock shared data
     let mut data = potential_peer_list.lock().await;
-    let result = data.clone();
+    let ip_list = data.clone();
     data.clear();
 
-    Ok(json!({"ip_list": result}))
-}
-
-pub async fn scan_old() -> Result<Value, Error> {
-    // TODO optimze by determining alive hosts first
-    // Define data
-    let local_ip = echo_helpers::get_local_ip().await;
-    let ip_list = scan_helpers::generate_ips(local_ip).await;
+    // send echo to discovered hosts
     let mut handles = Vec::new();
-
-    // Iterate through all ips
     for ip in ip_list {
         let handle = tokio::spawn(async move {
             let client = Client::builder()
@@ -132,7 +104,8 @@ pub async fn scan_old() -> Result<Value, Error> {
     let mut result = Vec::new();
     for handle in handles {
         if let Ok(Some(data)) = handle.await {
-            let response: ScanPeerResponse = serde_json::from_str(&data)?;
+            let response: scan_helpers::ScanPeerResponse =
+                serde_json::from_str(&data)?;
             result.push(response.data.clone());
         }
     }

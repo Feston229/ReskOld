@@ -1,14 +1,17 @@
-use crate::connect::{
-    controllers::echo_helpers::get_local_ip,
-    routes::{connect_peer, echo, scan},
-};
 use crate::share::routes::update;
 use crate::utils::{
     db::Database,
     error::Error,
     general::{check_keys, get_log_file_path},
 };
-use actix_web::{middleware::Logger, App, HttpServer};
+use crate::{
+    connect::{
+        controllers::echo_helpers::get_local_ip,
+        routes::{connect_peer, echo, scan},
+    },
+    utils::general::get_db_path,
+};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use async_once::AsyncOnce;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use lazy_static::lazy_static;
@@ -20,8 +23,10 @@ use log4rs::{
 };
 use std::{
     net::{Ipv4Addr, SocketAddrV4},
+    path::Path,
     sync::Arc,
 };
+use tokio::fs::OpenOptions;
 use tokio::{net::UdpSocket as TokioUdpSocket, sync::Mutex, time::Duration};
 
 use super::communication::{start_broadcasting, update_peers};
@@ -52,7 +57,9 @@ pub async fn run() -> Result<(), Error> {
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())
-            .app_data(potential_peer_list.clone())
+            .app_data(web::Data::clone(&web::Data::new(
+                potential_peer_list.clone(),
+            )))
             .service(connect_peer)
             .service(echo)
             .service(scan)
@@ -72,12 +79,28 @@ async fn pre_run() -> Result<(), Error> {
             check_keys()?;
             Ok(())
         });
-    DATABASE.get().await.apply_migrations().await.unwrap();
+
+    // database init
+    check_db().await?;
 
     // Logging
     init_logging().await?;
 
     pre_run_cpu.await??;
+
+    Ok(())
+}
+
+async fn check_db() -> Result<(), Error> {
+    if !Path::new(get_db_path().as_str()).exists() {
+        OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(get_db_path().as_str())
+            .await?;
+    }
+    DATABASE.get().await.apply_migrations().await?;
     Ok(())
 }
 

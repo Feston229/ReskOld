@@ -25,10 +25,10 @@ pub async fn update_peers(clipboard: String) -> Result<(), Error> {
         let signature = signature.clone();
         let clipboard = clipboard.clone();
         let handle = tokio::spawn(async move {
-            let url = format!("http://{}:9897/update", &peer);
+            let url = format!("http://{}:9898/update", &peer);
             let body = json!({"clipboard": clipboard, "signature": signature});
             let client = Client::builder()
-                .timeout(Duration::from_secs(1))
+                .timeout(Duration::from_secs(2))
                 .build()
                 .unwrap();
             let response = client
@@ -88,7 +88,7 @@ pub async fn start_broadcasting(potential_peer_list: Arc<Mutex<Vec<String>>>) {
     let multicast_addr: Ipv4Addr = "239.0.0.1".parse().unwrap();
     let port: u16 = 23235;
 
-    tokio::spawn(multicast_client(multicast_addr, port));
+    //tokio::spawn(multicast_client(multicast_addr, port));
     tokio::spawn(multicast_server(potential_peer_list));
 }
 // Used to send ping to other peers

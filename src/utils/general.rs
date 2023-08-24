@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{fs::OpenOptions, path::Path};
 
 use actix_web::{HttpRequest, HttpResponse};
 use dirs::home_dir;
@@ -50,11 +50,18 @@ impl Response {
 }
 
 pub fn check_keys() -> Result<(), Error> {
-    if !Path::new(get_pub_key_path().as_str()).exists()
-        || !Path::new(get_private_key_path().as_str()).exists()
+    if !Path::new(get_verify_key_path().as_str()).exists()
+        || !Path::new(get_sign_key_path().as_str()).exists()
     {
         std::fs::create_dir_all(get_keys_dir())?;
         generate_keys()?;
+    }
+    if !Path::new(get_log_file_path().as_str()).exists() {
+        OpenOptions::new()
+            .write(true)
+            .create(true)
+            .append(true)
+            .open(get_log_file_path().as_str())?;
     }
     Ok(())
 }
@@ -71,13 +78,13 @@ pub fn get_keys_dir() -> String {
 }
 
 #[cfg(target_os = "linux")]
-pub fn get_pub_key_path() -> String {
-    format!("{}/.resk/keys/pub_key.pem", get_home_dir())
+pub fn get_verify_key_path() -> String {
+    format!("{}/.resk/keys/verify_key.pem", get_home_dir())
 }
 
 #[cfg(target_os = "linux")]
-pub fn get_private_key_path() -> String {
-    format!("{}/.resk/keys/private_key.pem", get_home_dir())
+pub fn get_sign_key_path() -> String {
+    format!("{}/.resk/keys/sign_key.pem", get_home_dir())
 }
 
 #[cfg(target_os = "linux")]
@@ -101,12 +108,12 @@ pub fn get_keys_dir() -> String {
 }
 
 #[cfg(target_os = "android")]
-pub fn get_pub_key_path() -> String {
+pub fn get_verify_key_path() -> String {
     todo!()
 }
 
 #[cfg(target_os = "android")]
-pub fn _get_private_key_path() -> String {
+pub fn _get_sign_key_path() -> String {
     todo!()
 }
 
