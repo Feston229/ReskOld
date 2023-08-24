@@ -65,7 +65,7 @@ pub async fn run() -> Result<(), Error> {
             .service(scan)
             .service(update)
     })
-    .bind((local_ip.as_str(), 9898))?
+    .bind(("0.0.0.0", 9898))?
     .run()
     .await?;
 

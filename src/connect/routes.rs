@@ -45,7 +45,10 @@ pub async fn scan(
     potential_peer_list: web::Data<Arc<Mutex<Vec<String>>>>,
 ) -> impl Responder {
     // TODO replace it somehow
-    if get_remote_ip(&req).await != get_local_ip().await {
+    println!("{} -> {}", get_remote_ip(&req).await, get_local_ip().await);
+    if get_remote_ip(&req).await != get_local_ip().await
+        && get_remote_ip(&req).await != "127.0.0.1"
+    {
         return Response::failure(403, "Forbiden".to_string());
     }
 
