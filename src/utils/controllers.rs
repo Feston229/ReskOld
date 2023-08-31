@@ -53,7 +53,6 @@ pub async fn run() -> Result<(), Error> {
     tokio::spawn(start_broadcasting(potential_peer_list.clone()));
 
     // Node
-    let local_ip = get_local_ip().await;
     HttpServer::new(move || {
         App::new()
             .wrap(Logger::default())

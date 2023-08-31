@@ -19,7 +19,9 @@ async fn update(
     // TODO replace it somehow
     let db = Database::new().await.unwrap();
     let peer_ip_list = db.get_peers_ip().await.unwrap_or(vec![]);
-    if !peer_ip_list.contains(&get_remote_ip(&req).await) {
+    if !peer_ip_list.contains(&get_remote_ip(&req).await)
+        && get_remote_ip(&req).await != "127.0.0.1"
+    {
         return Response::failure(403, "Forbiden".to_string());
     }
 
